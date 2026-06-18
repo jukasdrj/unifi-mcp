@@ -133,14 +133,14 @@ Bump type is determined by the commit message prefix:
 - Everything else (`fix`, `chore`, `refactor`, `test`, `docs`, etc.) → **patch** (X.Y.Z+1)
 
 **Files to update (if they exist in this repo):**
-- `Cargo.toml` — `version = "X.Y.Z"` in `[package]`
-- `package.json` — `"version": "X.Y.Z"`
 - `pyproject.toml` — `version = "X.Y.Z"` in `[project]`
 - `.claude-plugin/plugin.json` — `"version": "X.Y.Z"`
-- `.codex-plugin/plugin.json` — `"version": "X.Y.Z"`
-- `gemini-extension.json` — `"version": "X.Y.Z"`
-- `README.md` — version badge or header
+- `uv.lock` — regenerate with `uv lock` after bumping `pyproject.toml`
 - `CHANGELOG.md` — new entry under the bumped version
 
-All files MUST have the same version. Never bump only one file.
+(The README version badge is a dynamic PyPI shield, so there is nothing to bump
+there. The `.codex-plugin/` and `gemini-extension.json` manifests were removed in
+2.0.0 — only the Claude plugin manifest is shipped.)
+
+All version-bearing files MUST have the same version. Never bump only one file.
 CHANGELOG.md must have an entry for every version bump.

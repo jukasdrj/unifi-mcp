@@ -10,9 +10,8 @@ from fastmcp.tools.base import ToolResult
 from mcp.types import TextContent
 
 from ..client import UnifiControllerClient
-from ..models.enums import AUTH_ACTIONS, CLIENT_ACTIONS, DEVICE_ACTIONS, MONITORING_ACTIONS, NETWORK_ACTIONS, UnifiAction
+from ..models.enums import CLIENT_ACTIONS, DEVICE_ACTIONS, MONITORING_ACTIONS, NETWORK_ACTIONS
 from ..models.params import UnifiParams
-from .base import BaseService
 from .client_service import ClientService
 from .device_service import DeviceService
 from .monitoring_service import MonitoringService
@@ -61,8 +60,6 @@ class UnifiService:
                 return await self.network_service.execute_action(params)
             elif params.action in MONITORING_ACTIONS:
                 return await self.monitoring_service.execute_action(params)
-            elif params.action in AUTH_ACTIONS:
-                return await self._handle_auth_action(params)
             else:
                 return self._create_error_result(
                     f"Unknown action: {params.action}"
@@ -71,74 +68,6 @@ class UnifiService:
         except Exception as e:
             logger.error(f"Error executing action {params.action}: {e}")
             return self._create_error_result(str(e))
-
-    async def _handle_auth_action(self, params: UnifiParams) -> ToolResult:
-        """Handle authentication-related actions.
-
-        Args:
-            params: Validated parameters containing action and arguments
-
-        Returns:
-            ToolResult with authentication response
-        """
-        if params.action == UnifiAction.GET_USER_INFO:
-            return await self._get_user_info()
-        else:
-            return self._create_error_result(
-                f"Authentication action {params.action} not supported"
-            )
-
-    async def _get_user_info(self) -> ToolResult:
-        """Get the authenticated UniFi controller admin account.
-
-        Returns:
-            ToolResult with the controller `self` admin record
-        """
-        try:
-            # /s/default/self returns the admin account this session is logged in as.
-            # (The old implementation reported MCP-caller OAuth claims, which are
-            #  absent under simple Bearer auth -> always "Not authenticated".)
-            result = await self.client._make_request("GET", "/self", site_name="default")
-
-            if isinstance(result, dict) and "error" in result:
-                return ToolResult(
-                    content=[TextContent(type="text", text=f"Error: {result.get('error','unknown error')}")],
-                    structured_content={"authenticated": False, "error": result.get('error','unknown error')}
-                )
-
-            admin = BaseService.first_record(result)
-
-            # An empty /self record means we did not get an authenticated admin back.
-            if not admin:
-                return ToolResult(
-                    content=[TextContent(type="text", text="Error: Not authenticated (empty /self response)")],
-                    structured_content={"authenticated": False, "error": "Empty /self response"}
-                )
-
-            user_info = {
-                "authenticated": True,
-                "admin_id": admin.get("admin_id") or admin.get("id"),
-                "name": admin.get("name"),
-                "email": admin.get("email"),
-                "is_super": admin.get("is_super"),
-                "last_site_name": admin.get("last_site_name"),
-            }
-
-            display = user_info.get("name") or user_info.get("email") or "Unknown"
-            return ToolResult(
-                content=[TextContent(type="text", text=f"Controller admin: {display}")],
-                structured_content=user_info
-            )
-
-        except Exception as e:
-            logger.error(f"Error getting user info: {e}")
-            return ToolResult(
-                content=[TextContent(type="text", text=f"Error: {e!s}")],
-                structured_content={
-                    "error": f"Failed to get user info: {e!s}",
-                    "authenticated": False
-                }
-            )
 
     @staticmethod
     def _create_error_result(message: str, raw_data=None) -> ToolResult:

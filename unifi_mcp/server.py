@@ -20,14 +20,6 @@ from .client import UnifiControllerClient
 from .config import ServerConfig, UniFiConfig, validate_auth_config
 from .models import UnifiAction, UnifiParams
 from .models.enums import DESTRUCTIVE_ACTIONS
-from .resources import (
-    register_client_resources,
-    register_device_resources,
-    register_monitoring_resources,
-    register_network_resources,
-    register_overview_resources,
-    register_site_resources,
-)
 from .services import UnifiService
 
 logger = logging.getLogger(__name__)
@@ -169,14 +161,6 @@ class UniFiMCPServer:
         self._register_unified_tool()
         self._register_help_tool()
 
-        logger.info("Registering MCP resources...")
-        register_device_resources(self.mcp, self.client)
-        register_client_resources(self.mcp, self.client)
-        register_network_resources(self.mcp, self.client)
-        register_monitoring_resources(self.mcp, self.client)
-        register_overview_resources(self.mcp, self.client)
-        register_site_resources(self.mcp, self.client)
-
         logger.info("UniFi MCP Server initialization complete")
 
     # ------------------------------------------------------------------
@@ -196,7 +180,7 @@ class UniFiMCPServer:
                 str,
                 Field(
                     default="default",
-                    description="UniFi site name (not used by get_sites, get_controller_status, get_user_info)",
+                    description="UniFi site name (not used by get_sites, get_controller_status)",
                 ),
             ] = "default",
             mac: Annotated[
@@ -293,7 +277,6 @@ class UniFiMCPServer:
             - Monitoring & Statistics: get_controller_status, get_events, get_alarms,
               get_dpi_stats, get_rogue_aps, start_spectrum_scan, get_spectrum_scan_state,
               authorize_guest, get_speedtest_results, get_ips_events
-            - Authentication: get_user_info
 
             Destructive actions (restart_device, block_client, forget_client, reconnect_client)
             require confirm=true unless UNIFI_MCP_ALLOW_DESTRUCTIVE=true
@@ -458,11 +441,6 @@ Single action-based tool for all UniFi operations.
 | `authorize_guest` | Authorize guest access |
 | `get_speedtest_results` | Get speedtest history |
 | `get_ips_events` | Get IPS/IDS events |
-
-#### Authentication
-| Action | Description |
-|--------|-------------|
-| `get_user_info` | Get authenticated user info |
 
 ### Destructive Operations
 

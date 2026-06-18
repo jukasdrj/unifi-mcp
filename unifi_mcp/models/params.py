@@ -28,7 +28,7 @@ class UnifiParams(BaseModel):
 
     site_name: str = Field(
         default="default",
-        description="UniFi site name (not used by get_sites, get_controller_status, get_user_info)",
+        description="UniFi site name (not used by get_sites, get_controller_status)",
     )
 
     # Device and client identification

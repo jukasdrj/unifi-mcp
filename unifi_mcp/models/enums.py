@@ -14,13 +14,13 @@ class UnifiAction(str, Enum):
     unified unifi tool. Each action corresponds to a previously separate tool.
     """
 
-    # Device Management Actions (4)
+    # Device Management Actions
     GET_DEVICES = "get_devices"
     GET_DEVICE_BY_MAC = "get_device_by_mac"
     RESTART_DEVICE = "restart_device"
     LOCATE_DEVICE = "locate_device"
 
-    # Client Management Actions (7)
+    # Client Management Actions
     GET_CLIENTS = "get_clients"
     RECONNECT_CLIENT = "reconnect_client"
     BLOCK_CLIENT = "block_client"
@@ -29,7 +29,7 @@ class UnifiAction(str, Enum):
     SET_CLIENT_NAME = "set_client_name"
     SET_CLIENT_NOTE = "set_client_note"
 
-    # Network Configuration Actions (8)
+    # Network Configuration Actions
     GET_SITES = "get_sites"
     GET_WLAN_CONFIGS = "get_wlan_configs"
     GET_NETWORK_CONFIGS = "get_network_configs"
@@ -40,7 +40,7 @@ class UnifiAction(str, Enum):
     GET_STATIC_ROUTES = "get_static_routes"
     GET_DHCP_RESERVATIONS = "get_dhcp_reservations"
 
-    # Monitoring and Statistics Actions (11)
+    # Monitoring and Statistics Actions
     GET_CONTROLLER_STATUS = "get_controller_status"
     GET_EVENTS = "get_events"
     GET_ALARMS = "get_alarms"
@@ -51,9 +51,6 @@ class UnifiAction(str, Enum):
     AUTHORIZE_GUEST = "authorize_guest"
     GET_SPEEDTEST_RESULTS = "get_speedtest_results"
     GET_IPS_EVENTS = "get_ips_events"
-
-    # Authentication Action (1)
-    GET_USER_INFO = "get_user_info"
 
 
 # Action categorization for service routing
@@ -99,10 +96,6 @@ MONITORING_ACTIONS = {
     UnifiAction.GET_IPS_EVENTS,
 }
 
-AUTH_ACTIONS = {
-    UnifiAction.GET_USER_INFO,
-}
-
 # Actions that require MAC address parameter
 MAC_REQUIRED_ACTIONS = {
     UnifiAction.GET_DEVICE_BY_MAC,
@@ -123,7 +116,6 @@ MAC_REQUIRED_ACTIONS = {
 NO_SITE_ACTIONS = {
     UnifiAction.GET_SITES,
     UnifiAction.GET_CONTROLLER_STATUS,
-    UnifiAction.GET_USER_INFO,
 }
 
 # Actions that are destructive and require explicit confirmation

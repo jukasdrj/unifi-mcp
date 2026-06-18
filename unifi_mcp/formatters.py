@@ -5,6 +5,7 @@ Provides consistent, human-readable formatting for all UniFi API data,
 eliminating overwhelming JSON walls and focusing on essential information.
 """
 
+import ipaddress
 import logging
 from datetime import datetime
 from typing import Any
@@ -389,7 +390,7 @@ def format_client_summary(client: dict[str, Any]) -> dict[str, Any]:
 
     summary = {
         "name": client.get("name") or client.get("hostname", "Unknown Device"),
-        "mac": client.get("mac", "").upper(),
+        "mac": (client.get("mac") or "").upper(),
         "ip": client.get("ip", "Unknown"),
         "status": status,
         "status_display": status.title(),
@@ -662,13 +663,13 @@ def format_reservations_list(reservations: list[dict[str, Any]]) -> str:
     if not reservations:
         return "No DHCP reservations configured."
 
-    # Sort by the last octet of the reserved IPv4 address for readability;
-    # non-IPv4 / missing values sort first (key 0).
-    def _ip_key(r: dict[str, Any]) -> int:
+    # Sort by full reserved IP address (correct across subnets and IPv4/IPv6);
+    # non-IP / missing values sort last.
+    def _ip_key(r: dict[str, Any]) -> tuple[int, int]:
         try:
-            return int(str(r.get("fixed_ip") or "0").rsplit(".", 1)[-1])
-        except (ValueError, TypeError):
-            return 0
+            return (0, int(ipaddress.ip_address(str(r.get("fixed_ip") or ""))))
+        except ValueError:
+            return (1, 0)
 
     lines = [format_reservation_text(r) for r in sorted(reservations, key=_ip_key)]
     if any(r.get("active") is None for r in reservations):

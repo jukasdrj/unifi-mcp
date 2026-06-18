@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-18
+
+Slim-down to the single-admin, single-consumer homelab profile: this server is
+driven only through the unified `unifi` tool (via homelab-router), so dead and
+unreachable surfaces were removed rather than maintained.
+
+### Removed (breaking)
+- **`unifi_mcp/tools/` package** — the per-domain `register_*_tools` modules were
+  never registered by `server.py` (dead code; the server exposes only the unified
+  `unifi` + `unifi_help` tools). Deleted.
+- **`unifi_mcp/resources/` package** — all `unifi://` resources. They were
+  registered but unreachable through homelab-router (which forwards `unifi`
+  *actions*, never reads resource URIs). Their removal also retires the broken
+  `unifi://sysinfo` resource (it parsed `/stat/sysinfo` as a dict; that endpoint
+  returns a list) and the tool/resource "two surfaces must agree" class of bugs.
+- **`get_user_info` action** (+ `AUTH_ACTIONS`) — single-admin homelab; the
+  controller-admin lookup served no purpose and could false-positive
+  `authenticated: true` on a non-error `/self` payload.
+- Unused client manifests `.codex-plugin/` and `gemini-extension.json` (only the
+  Claude plugin manifest is consumed).
+
+### Fixed
+- **Null `mac` crash:** `format_client_summary` used `client.get("mac", "").upper()`,
+  which raised `AttributeError` on a present-but-null `mac`. Now `(... or "").upper()`.
+- **DHCP reservations robustness:** non-dict elements in the `/stat/sta` and
+  `/rest/user` lists are skipped instead of crashing the whole action; a
+  reservation whose MAC fails validation is flagged `active=None` (unknown) rather
+  than a false `False` (past).
+- **Reservation sort:** ordered by full IP via `ipaddress.ip_address` (correct
+  across subnets and IPv4/IPv6) instead of last-octet only.
+
+### Changed
+- Dropped the unused `network_id` field from reservation records.
+- Removed the rot-prone `(N)` counts from `enums.py` section comments and the
+  `get_user_info` rows from the help text / README action table.
+
 ## [1.1.1] - 2026-06-17
 
 ### Fixed
