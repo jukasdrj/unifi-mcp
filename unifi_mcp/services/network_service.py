@@ -5,6 +5,7 @@ Handles all network configuration operations including sites, WLANs, networks,
 port configurations, and security settings.
 """
 
+import asyncio
 import logging
 from typing import Any, cast
 
@@ -207,44 +208,64 @@ class NetworkService(BaseService):
             defaults = params.get_action_defaults()
             site_name = defaults.get('site_name', 'default')
 
-            known = await self.client.get_all_known_clients(site_name)
+            # Fetch the reservation source (/rest/user) and the active-client set
+            # (/stat/sta) concurrently; they are independent read-only GETs.
+            known, active = await asyncio.gather(
+                self.client.get_all_known_clients(site_name),
+                self.client.get_clients(site_name),
+                return_exceptions=True,
+            )
+
+            if isinstance(known, BaseException):
+                return self.create_error_result(str(known))
             error_result = self.check_list_response(known, params.action)
             if error_result:
                 return error_result
-
             known_list = cast("list[dict[str, Any]]", known)
 
             # Build the set of currently-associated MACs to flag active vs past.
-            active_macs: set[str] = set()
-            active = await self.client.get_clients(site_name)
+            # active_macs is None when /stat/sta could not be fetched -> we report
+            # "active state unavailable" rather than silently flagging all as past.
+            active_macs: set[str] | None = None
             if isinstance(active, list):
-                active_macs = {
-                    str(c.get("mac", "")).lower()
-                    for c in active if c.get("mac")
-                }
+                active_macs = set()
+                for c in active:
+                    mac = c.get("mac")
+                    if not mac:
+                        continue
+                    try:
+                        active_macs.add(self.normalize_mac(str(mac)))
+                    except ValueError:
+                        continue
+            else:
+                logger.warning(
+                    "DHCP reservations: active-client fetch unavailable (%s); "
+                    "active/past state will be reported as unknown", active
+                )
 
-            reservations = []
+            formatted = []
             for c in known_list:
                 if not c.get("use_fixedip"):
                     continue
-                c = dict(c)
-                c["_active"] = str(c.get("mac", "")).lower() in active_macs
-                reservations.append(c)
+                active_flag: bool | None
+                if active_macs is None:
+                    active_flag = None
+                else:
+                    try:
+                        active_flag = self.normalize_mac(str(c.get("mac", ""))) in active_macs
+                    except ValueError:
+                        active_flag = False
+                formatted.append({
+                    "fixed_ip": c.get("fixed_ip"),
+                    "name": c.get("name") or c.get("hostname") or "(unnamed)",
+                    "mac": str(c.get("mac", "")).upper(),
+                    "active": active_flag,
+                    "wired": c.get("is_wired", False),
+                    "vendor": c.get("oui"),
+                    "network_id": c.get("network_id"),
+                })
 
-            formatted = [
-                {
-                    "fixed_ip": r.get("fixed_ip"),
-                    "name": r.get("name") or r.get("hostname") or "(unnamed)",
-                    "mac": str(r.get("mac", "")).upper(),
-                    "active": r.get("_active", False),
-                    "wired": r.get("is_wired", False),
-                    "vendor": r.get("oui"),
-                    "network_id": r.get("network_id"),
-                }
-                for r in reservations
-            ]
-
-            summary_text = format_reservations_list(reservations)
+            summary_text = format_reservations_list(formatted)
             return self.create_success_result(
                 text=summary_text,
                 data=formatted,

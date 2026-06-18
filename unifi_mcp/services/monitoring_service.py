@@ -82,19 +82,21 @@ class MonitoringService(BaseService):
                     structured_content={"error": result.get('error','unknown error'), "raw": result}
                 )
 
-            info = result[0] if isinstance(result, list) and result else (result if isinstance(result, dict) else {})
-            version = info.get("version") or info.get("console_display_version", "Unknown")
+            info = self.first_record(result)
+            up = bool(info)
+            version = info.get("version") or info.get("console_display_version") or "Unknown"
             build = info.get("build", "")
 
             resp = {
-                "status": "online",
+                "status": "online" if up else "unknown",
                 "server_version": version,
                 "build": build,
-                "up": True,
+                "up": up,
                 "details": info
             }
             build_str = f" ({build})" if build else ""
-            text = f"Controller Status\n  Version: {version}{build_str} | Up: ✓"
+            up_icon = "✓" if up else "?"
+            text = f"Controller Status\n  Version: {version}{build_str} | Up: {up_icon}"
             return ToolResult(
                 content=[TextContent(type="text", text=text)],
                 structured_content=resp

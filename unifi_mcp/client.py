@@ -184,8 +184,19 @@ class UnifiControllerClient:
         return await self._make_request("GET", "/stat/device", site_name=site_name)
 
     async def get_clients(self, site_name: str = "default") -> dict[str, Any] | list:
-        """Get all active clients for a site."""
-        return await self._make_request("GET", "/stat/sta", site_name=site_name)
+        """Get all active clients for a site.
+
+        /stat/sta only returns currently-connected clients and carries no
+        `is_online` field, so annotate presence == online here at the fetch
+        boundary. Every consumer (formatters, overview resources, services)
+        then reads an explicit field rather than guessing a default.
+        """
+        clients = await self._make_request("GET", "/stat/sta", site_name=site_name)
+        if isinstance(clients, list):
+            for c in clients:
+                if isinstance(c, dict):
+                    c.setdefault("is_online", True)
+        return clients
 
     async def get_all_known_clients(self, site_name: str = "default") -> dict[str, Any] | list:
         """Get all known clients (active + historical), including DHCP reservation

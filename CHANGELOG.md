@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-06-17
+
+### Fixed
+- **DHCP reservations silently mislabeled "past":** when the active-client fetch
+  (`/stat/sta`) failed, every reservation was flagged inactive while the call
+  reported success. The two fetches now run via `asyncio.gather`, and an
+  unavailable active set is reported as "active state unavailable" (state `None`)
+  instead of a false "past".
+- **MAC matching skipped normalization:** active/past flagging now uses
+  `BaseService.normalize_mac()` (the shared `.lower()`+separator chain) instead of
+  a bare `.lower()`, so reservations match regardless of separator style.
+- **Online/Offline disagreement between surfaces:** `is_online` is now annotated
+  once at the fetch boundary (`client.get_clients`), so the `unifi` tool and the
+  `unifi://` overview resources agree; the formatters are back to dumb renderers.
+- **`get_controller_status` always reported healthy:** `up`/`status` are now derived
+  from the `/stat/sysinfo` payload instead of being hardcoded `True`/`online`.
+- **`get_user_info` phantom auth:** an empty `/self` response now returns
+  `authenticated: false` instead of a null-identity "authenticated" record.
+- **`fixed_ip` null rendering:** a present-but-null `fixed_ip` no longer prints
+  `📌 None`; falls back to the current IP / `?`.
+
+### Changed
+- Reservation rendering consolidated to a single formatted shape (removed the
+  `_active` side-channel key and a redundant copy/pass); shared `first_record()`
+  helper added to `BaseService` for list-or-empty UniFi responses.
+
+### Tests
+- Faithful `/stat/sysinfo`, `/self`, and `get_all_known_clients` mocks; the
+  controller-status test now exercises real version parsing, and a new
+  `test_get_dhcp_reservations` covers active/past flagging and fixed-IP exclusion.
+
 ## [1.1.0] - 2026-06-17
 
 ### Added

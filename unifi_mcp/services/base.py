@@ -62,6 +62,22 @@ class BaseService(ABC):
         return normalized
 
     @staticmethod
+    def first_record(result: object) -> dict:
+        """Return the single record from a UniFi list-or-empty response.
+
+        `_make_request` unwraps the `data` envelope, so endpoints like
+        /stat/sysinfo and /self return a list containing one dict. Callers
+        must already have handled the `{"error": ...}` dict case before
+        calling this.
+        """
+        if isinstance(result, list) and result:
+            first = result[0]
+            return first if isinstance(first, dict) else {}
+        if isinstance(result, dict):
+            return result
+        return {}
+
+    @staticmethod
     def create_error_result(message: str, raw_data: UniFiData | ErrorResponse | dict[str, JSONValue] | None = None) -> ToolResult:
         """Create standardized error ToolResult.
 

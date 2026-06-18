@@ -12,6 +12,7 @@ from mcp.types import TextContent
 from ..client import UnifiControllerClient
 from ..models.enums import AUTH_ACTIONS, CLIENT_ACTIONS, DEVICE_ACTIONS, MONITORING_ACTIONS, NETWORK_ACTIONS, UnifiAction
 from ..models.params import UnifiParams
+from .base import BaseService
 from .client_service import ClientService
 from .device_service import DeviceService
 from .monitoring_service import MonitoringService
@@ -105,7 +106,14 @@ class UnifiService:
                     structured_content={"authenticated": False, "error": result.get('error','unknown error')}
                 )
 
-            admin = result[0] if isinstance(result, list) and result else (result if isinstance(result, dict) else {})
+            admin = BaseService.first_record(result)
+
+            # An empty /self record means we did not get an authenticated admin back.
+            if not admin:
+                return ToolResult(
+                    content=[TextContent(type="text", text="Error: Not authenticated (empty /self response)")],
+                    structured_content={"authenticated": False, "error": "Empty /self response"}
+                )
 
             user_info = {
                 "authenticated": True,

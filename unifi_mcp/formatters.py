@@ -381,9 +381,9 @@ def format_device_summary(device: dict[str, Any]) -> dict[str, Any]:
 def format_client_summary(client: dict[str, Any]) -> dict[str, Any]:
     """Format client data into clean, readable summary."""
     is_wired = client.get("is_wired", False)
-    # NOTE: /stat/sta returns only currently-connected clients and does NOT
-    # include an `is_online` field, so default to True (presence == online).
-    status = "online" if client.get("is_online", True) else "offline"
+    # `is_online` is annotated at the fetch boundary (client.get_clients sets it
+    # True for /stat/sta records); this stays a dumb renderer of the explicit field.
+    status = "online" if client.get("is_online", False) else "offline"
     total_bytes_raw = (client.get("rx_bytes", 0) or 0) + (client.get("tx_bytes", 0) or 0)
     use_fixedip = bool(client.get("use_fixedip", False))
 
@@ -396,7 +396,7 @@ def format_client_summary(client: dict[str, Any]) -> dict[str, Any]:
         "connection_type": "wired" if is_wired else "wireless",
         "connection_type_display": "Wired" if is_wired else "Wireless",
         "dhcp_reserved": use_fixedip,
-        "fixed_ip": client.get("fixed_ip") if use_fixedip else None,
+        "fixed_ip": (client.get("fixed_ip") or None) if use_fixedip else None,
         "connected_time": format_uptime(client.get("uptime", 0)),
         "last_seen": format_timestamp(client.get("last_seen", 0)),
         "bytes_sent": format_bytes(client.get("tx_bytes", 0)),
@@ -491,8 +491,8 @@ def format_client_text(client: dict[str, Any]) -> str:
     ip = client.get("ip", "Unknown")
     is_wired = client.get("is_wired", False)
     connection_type = "Wired" if is_wired else "Wireless"
-    # /stat/sta only returns connected clients (no is_online field) -> default Online.
-    status = "Online" if client.get("is_online", True) else "Offline"
+    # `is_online` is annotated at the fetch boundary (client.get_clients); render the field.
+    status = "Online" if client.get("is_online", False) else "Offline"
 
     # Connection icon
     icon = "🔌" if is_wired else "📶"
@@ -504,8 +504,8 @@ def format_client_text(client: dict[str, Any]) -> str:
     else:
         signal = ""
 
-    # DHCP reservation marker
-    reserved = f" · 📌 {client.get('fixed_ip', ip)}" if client.get("use_fixedip") else ""
+    # DHCP reservation marker (fixed_ip may be present-but-null -> fall back to current ip)
+    reserved = f" · 📌 {client.get('fixed_ip') or ip}" if client.get("use_fixedip") else ""
 
     return f"{icon} {name} ({ip}) - {status}, {connection_type}{signal}{reserved}"
 
@@ -639,39 +639,44 @@ def format_networks_list(networks: list[dict[str, Any]]) -> str:
     return f"Network Configurations ({len(networks)} total): " + " | ".join(network_texts)
 
 
-def format_reservation_text(client: dict[str, Any]) -> str:
-    """Format one DHCP reservation into a clean text line."""
-    name = client.get("name") or client.get("hostname") or "(unnamed)"
-    fixed_ip = client.get("fixed_ip", "?")
-    mac = client.get("mac", "")
-    is_wired = client.get("is_wired", False)
-    icon = "🔌" if is_wired else "📶"
-    # rest/user has no live-state field; infer recency from disconnect/last_seen.
-    active = client.get("_active") is True
-    state = "🟢" if active else "⚪"
-    vendor = client.get("oui", "")
+def format_reservation_text(reservation: dict[str, Any]) -> str:
+    """Format one DHCP reservation (a formatted reservation dict) into a text line.
+
+    Reads the public fields produced by NetworkService._get_dhcp_reservations:
+    fixed_ip / name / mac / wired / vendor / active (True | False | None).
+    `active` is None when current connection state could not be determined.
+    """
+    fixed_ip = reservation.get("fixed_ip") or "?"
+    name = reservation.get("name") or "(unnamed)"
+    mac = reservation.get("mac", "")
+    icon = "🔌" if reservation.get("wired") else "📶"
+    active = reservation.get("active")
+    state = "🟢" if active is True else ("❓" if active is None else "⚪")
+    vendor = reservation.get("vendor") or ""
     vendor_str = f" [{vendor}]" if vendor else ""
     return f"{state} {fixed_ip} {icon} {name} ({mac}){vendor_str}"
 
 
-def format_reservations_list(clients: list[dict[str, Any]]) -> str:
+def format_reservations_list(reservations: list[dict[str, Any]]) -> str:
     """Format the list of DHCP reservations into clean text."""
-    if not clients:
+    if not reservations:
         return "No DHCP reservations configured."
 
-    # Sort by the last octet of the reserved IP for readability.
-    def _ip_key(c: dict[str, Any]) -> int:
+    # Sort by the last octet of the reserved IPv4 address for readability;
+    # non-IPv4 / missing values sort first (key 0).
+    def _ip_key(r: dict[str, Any]) -> int:
         try:
-            return int(str(c.get("fixed_ip", "0")).split(".")[-1])
-        except (ValueError, IndexError):
+            return int(str(r.get("fixed_ip") or "0").rsplit(".", 1)[-1])
+        except (ValueError, TypeError):
             return 0
 
-    lines = [format_reservation_text(c) for c in sorted(clients, key=_ip_key)]
-    active = sum(1 for c in clients if c.get("_active") is True)
-    return (
-        f"DHCP Reservations ({len(clients)} total, {active} active): "
-        + " | ".join(lines)
-    )
+    lines = [format_reservation_text(r) for r in sorted(reservations, key=_ip_key)]
+    if any(r.get("active") is None for r in reservations):
+        header = f"DHCP Reservations ({len(reservations)} total, active state unavailable)"
+    else:
+        active = sum(1 for r in reservations if r.get("active") is True)
+        header = f"DHCP Reservations ({len(reservations)} total, {active} active)"
+    return f"{header}: " + " | ".join(lines)
 
 
 # --- Additional token-efficient formatters for tools ---

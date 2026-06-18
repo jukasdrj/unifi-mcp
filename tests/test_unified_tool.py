@@ -223,6 +223,37 @@ MOCK_USERS_LIST = [
     {"_id": "user2", "mac": "cc:dd:ee:ff:00:02", "name": "Bob's Phone"},
 ]
 
+# Unwrapped /stat/sysinfo payload (a list with one dict, as _make_request returns).
+MOCK_SYSINFO = [
+    {
+        "version": "9.0.114",
+        "build": "atag_9.0.114_12345",
+        "console_display_version": "Network 9.0.114",
+    }
+]
+
+# Unwrapped /self payload (controller admin record).
+MOCK_SELF = [
+    {
+        "admin_id": "admin-1",
+        "name": "localadmin",
+        "email": "admin@example.com",
+        "is_super": True,
+        "last_site_name": "default",
+    }
+]
+
+# Known clients (active + historical) backing get_dhcp_reservations.
+# Row 1's MAC matches a MOCK_CLIENTS MAC -> active; row 2's does not -> past;
+# row 3 has no fixed IP and must be excluded.
+MOCK_KNOWN_USERS = [
+    {"mac": "cc:dd:ee:ff:00:01", "name": "Alice Reserved", "use_fixedip": True,
+     "fixed_ip": "192.168.1.21", "is_wired": False, "oui": "Apple", "network_id": "net1"},
+    {"mac": "cc:dd:ee:ff:00:99", "hostname": "old-server", "use_fixedip": True,
+     "fixed_ip": "192.168.1.10", "is_wired": True, "oui": "Dell", "network_id": "net1"},
+    {"mac": "cc:dd:ee:ff:00:42", "name": "Dynamic Device", "use_fixedip": False},
+]
+
 MOCK_CMD_RESPONSE = {"meta": {"rc": "ok"}, "data": []}
 MOCK_SPECTRUM_SCAN = {"meta": {"rc": "ok"}, "data": [{"state": "scanning"}]}
 
@@ -263,6 +294,7 @@ def _build_mock_client() -> AsyncMock:
     mock.get_dpi_stats = AsyncMock(return_value=MOCK_DPI_STATS)
     mock.get_rogue_aps = AsyncMock(return_value=MOCK_ROGUE_APS)
     mock.get_speedtest_results = AsyncMock(return_value=MOCK_SPEEDTEST)
+    mock.get_all_known_clients = AsyncMock(return_value=MOCK_KNOWN_USERS)
 
     # Command methods
     mock.restart_device = AsyncMock(return_value=MOCK_CMD_RESPONSE)
@@ -273,9 +305,17 @@ def _build_mock_client() -> AsyncMock:
     async def _make_request_side_effect(method: str, path: str, **kwargs: Any) -> Any:
         data = kwargs.get("data", {})
 
-        # Controller status
+        # Controller status (legacy path, retained for back-compat)
         if path == "/status":
             return MOCK_CONTROLLER_STATUS
+
+        # Controller status (UniFi OS path used by the current handler)
+        if path == "/stat/sysinfo":
+            return MOCK_SYSINFO
+
+        # Authenticated controller admin
+        if path == "/self":
+            return MOCK_SELF
 
         # Block/unblock/forget client commands
         if path == "/cmd/stamgr":
@@ -739,6 +779,27 @@ class TestMonitoringActions:
             result = await client.call_tool("unifi", {"action": "get_controller_status"})
         assert not _is_error(result)
         assert result.content
+        # Exercises the real /stat/sysinfo parsing, not an empty fallback.
+        assert "9.0.114" in _text(result)
+        sc = _data(result)
+        assert isinstance(sc, dict)
+        assert sc.get("server_version") == "9.0.114"
+        assert sc.get("up") is True
+
+    @pytest.mark.asyncio
+    async def test_get_dhcp_reservations(self, mcp_server: FastMCP) -> None:
+        async with Client(mcp_server) as client:
+            result = await client.call_tool("unifi", {"action": "get_dhcp_reservations"})
+        assert not _is_error(result)
+        # Only the two use_fixedip rows; one active (MAC in MOCK_CLIENTS), one past.
+        assert "DHCP Reservations (2 total, 1 active)" in _text(result)
+        rows = _data(result)
+        assert isinstance(rows, list)
+        by_mac = {r["mac"]: r for r in rows}
+        assert "CC:DD:EE:FF:00:42" not in by_mac  # no fixed IP -> excluded
+        assert by_mac["CC:DD:EE:FF:00:01"]["active"] is True
+        assert by_mac["CC:DD:EE:FF:00:01"]["fixed_ip"] == "192.168.1.21"
+        assert by_mac["CC:DD:EE:FF:00:99"]["active"] is False
 
     @pytest.mark.asyncio
     async def test_get_events_returns_list(self, mcp_server: FastMCP) -> None:
