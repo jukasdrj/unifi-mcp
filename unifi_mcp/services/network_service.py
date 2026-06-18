@@ -230,6 +230,8 @@ class NetworkService(BaseService):
             if isinstance(active, list):
                 active_macs = set()
                 for c in active:
+                    if not isinstance(c, dict):
+                        continue
                     mac = c.get("mac")
                     if not mac:
                         continue
@@ -245,16 +247,18 @@ class NetworkService(BaseService):
 
             formatted = []
             for c in known_list:
-                if not c.get("use_fixedip"):
+                if not isinstance(c, dict) or not c.get("use_fixedip"):
                     continue
                 active_flag: bool | None
                 if active_macs is None:
                     active_flag = None
                 else:
                     try:
+                        # An unparseable MAC means we can't determine state -> unknown,
+                        # not a false "past".
                         active_flag = self.normalize_mac(str(c.get("mac", ""))) in active_macs
                     except ValueError:
-                        active_flag = False
+                        active_flag = None
                 formatted.append({
                     "fixed_ip": c.get("fixed_ip"),
                     "name": c.get("name") or c.get("hostname") or "(unnamed)",
@@ -262,7 +266,6 @@ class NetworkService(BaseService):
                     "active": active_flag,
                     "wired": c.get("is_wired", False),
                     "vendor": c.get("oui"),
-                    "network_id": c.get("network_id"),
                 })
 
             summary_text = format_reservations_list(formatted)

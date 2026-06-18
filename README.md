@@ -8,14 +8,14 @@ FastMCP server for local UniFi controller management. Exposes a single `unifi` a
 
 ## Overview
 
-The server connects to a self-hosted UniFi controller (including UDM Pro) and proxies all operations through a single MCP tool. A unified action parameter replaces 31 individual tools while preserving every capability. Destructive operations require explicit confirmation. Bearer token auth protects the HTTP endpoint in production.
+The server connects to a self-hosted UniFi controller (including UDM Pro) and proxies all operations through a single MCP tool. A unified action parameter replaces the previous per-endpoint tools while preserving every capability. Destructive operations require explicit confirmation. Bearer token auth protects the HTTP endpoint in production.
 
 ## What this repository ships
 
 - `unifi_mcp/`: server, client, config, formatters, models, services, resources, and tools
 - `skills/unifi/`: client-facing skill
 - `docs/`: API notes, action-pattern rationale, testing notes
-- `.claude-plugin/`, `.codex-plugin/`, `gemini-extension.json`: client manifests
+- `.claude-plugin/`: Claude client manifest
 - `docker-compose.yaml`, `Dockerfile`: container deployment
 - `tests/`: unit, resource, and integration tests
 
@@ -30,7 +30,7 @@ Single action router for all UniFi operations.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `action` | string | yes | — | Action to perform (see below) |
-| `site_name` | string | no | `"default"` | UniFi site name. Ignored by `get_sites`, `get_controller_status`, `get_user_info` |
+| `site_name` | string | no | `"default"` | UniFi site name. Ignored by `get_sites`, `get_controller_status` |
 | `mac` | string | no | `null` | Device or client MAC address (any format: `aa:bb:cc`, `AA-BB-CC`, `aabb.cc`) |
 | `limit` | int | no | varies | Maximum results to return |
 | `connected_only` | bool | no | `true` | `get_clients`: return only currently connected clients |
@@ -112,6 +112,7 @@ unifi action=get_clients connected_only=false
 | `get_firewall_rules` | Firewall rules: action, protocol, source/destination, ruleset, index |
 | `get_firewall_groups` | Firewall groups: type, member IPs or MACs, member count |
 | `get_static_routes` | Static routes: destination network, gateway (nexthop), distance, interface |
+| `get_dhcp_reservations` | DHCP fixed-IP reservations across all known clients (active + past), flagged active/past, sorted by IP |
 
 All network configuration actions accept `site_name`. `get_sites` does not use `site_name`.
 
@@ -143,16 +144,6 @@ unifi action=authorize_guest mac=aa:bb:cc:dd:ee:ff minutes=120 down_bandwidth=50
 ```
 unifi action=get_dpi_stats by_filter=by_cat site_name=default
 ```
-
----
-
-### Identity
-
-| Action | Description |
-|--------|-------------|
-| `get_user_info` | Return the MCP OAuth token claims (email, name, picture, expiry) |
-
-`get_user_info` requires MCP OAuth (e.g. Google provider). UniFi controller credentials are separate. Returns an error if OAuth is not configured.
 
 ---
 

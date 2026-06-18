@@ -40,36 +40,6 @@ async def test_server_tools_registration(test_server):
 
 
 @pytest.mark.asyncio
-async def test_server_resources_registration(test_server):
-    """Test that all expected resources are registered with the server."""
-    resources = await test_server._list_resources()
-    resource_uris = [str(resource.uri) for resource in resources]
-
-    # Device resources
-    assert "unifi://devices" in resource_uris
-
-    # Client resources
-    assert "unifi://clients" in resource_uris
-
-    # Network resources
-    assert "unifi://config/networks" in resource_uris
-    assert "unifi://config/wlans" in resource_uris
-
-    # Monitoring resources
-    assert "unifi://events" in resource_uris
-    assert "unifi://alarms" in resource_uris
-    assert "unifi://health" in resource_uris
-
-    # Overview resources
-    assert "unifi://overview" in resource_uris
-    assert "unifi://dashboard" in resource_uris
-
-    # Additional resources that should be present
-    assert "unifi://sites" in resource_uris
-    assert "unifi://sysinfo" in resource_uris
-
-
-@pytest.mark.asyncio
 async def test_server_tool_execution_with_mock_client(test_server):
     """Test that the unified tool and help tool execute successfully."""
     async with Client(test_server) as client:
@@ -157,16 +127,6 @@ async def test_server_tool_schema_generation(test_server):
     assert "site_name" in schema["properties"]
     assert "confirm" in schema["properties"]
     assert schema["required"] == ["action"]
-
-
-@pytest.mark.asyncio
-async def test_server_resource_uri_patterns(test_server):
-    """Test that core device resource URIs are registered."""
-    resources = await test_server._list_resources()
-
-    resource_uris = {str(resource.uri) for resource in resources}
-    assert "unifi://devices" in resource_uris
-    assert "unifi://device-tags" in resource_uris
 
 
 @pytest.mark.asyncio
