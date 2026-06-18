@@ -16,6 +16,7 @@ from ..formatters import (
     format_firewall_rules_list,
     format_networks_list,
     format_port_forwarding_list,
+    format_reservations_list,
     format_site_summary,
     format_sites_list,
     format_static_routes_list,
@@ -53,6 +54,7 @@ class NetworkService(BaseService):
             UnifiAction.GET_FIREWALL_RULES: self._get_firewall_rules,
             UnifiAction.GET_FIREWALL_GROUPS: self._get_firewall_groups,
             UnifiAction.GET_STATIC_ROUTES: self._get_static_routes,
+            UnifiAction.GET_DHCP_RESERVATIONS: self._get_dhcp_reservations,
         }
 
         handler = action_map.get(params.action)
@@ -197,6 +199,60 @@ class NetworkService(BaseService):
 
         except Exception as e:
             logger.error(f"Error getting network configs: {e}")
+            return self.create_error_result(str(e))
+
+    async def _get_dhcp_reservations(self, params: UnifiParams) -> ToolResult:
+        """Get DHCP fixed-IP reservations across all known clients (active + past)."""
+        try:
+            defaults = params.get_action_defaults()
+            site_name = defaults.get('site_name', 'default')
+
+            known = await self.client.get_all_known_clients(site_name)
+            error_result = self.check_list_response(known, params.action)
+            if error_result:
+                return error_result
+
+            known_list = cast("list[dict[str, Any]]", known)
+
+            # Build the set of currently-associated MACs to flag active vs past.
+            active_macs: set[str] = set()
+            active = await self.client.get_clients(site_name)
+            if isinstance(active, list):
+                active_macs = {
+                    str(c.get("mac", "")).lower()
+                    for c in active if c.get("mac")
+                }
+
+            reservations = []
+            for c in known_list:
+                if not c.get("use_fixedip"):
+                    continue
+                c = dict(c)
+                c["_active"] = str(c.get("mac", "")).lower() in active_macs
+                reservations.append(c)
+
+            formatted = [
+                {
+                    "fixed_ip": r.get("fixed_ip"),
+                    "name": r.get("name") or r.get("hostname") or "(unnamed)",
+                    "mac": str(r.get("mac", "")).upper(),
+                    "active": r.get("_active", False),
+                    "wired": r.get("is_wired", False),
+                    "vendor": r.get("oui"),
+                    "network_id": r.get("network_id"),
+                }
+                for r in reservations
+            ]
+
+            summary_text = format_reservations_list(reservations)
+            return self.create_success_result(
+                text=summary_text,
+                data=formatted,
+                success_message=f"Found {len(formatted)} DHCP reservations"
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting DHCP reservations: {e}")
             return self.create_error_result(str(e))
 
     async def _get_port_configs(self, params: UnifiParams) -> ToolResult:

@@ -289,7 +289,7 @@ class UniFiMCPServer:
               forget_client, set_client_name, set_client_note
             - Network Configuration: get_sites, get_wlan_configs, get_network_configs,
               get_port_configs, get_port_forwarding_rules, get_firewall_rules,
-              get_firewall_groups, get_static_routes
+              get_firewall_groups, get_static_routes, get_dhcp_reservations
             - Monitoring & Statistics: get_controller_status, get_events, get_alarms,
               get_dpi_stats, get_rogue_aps, start_spectrum_scan, get_spectrum_scan_state,
               authorize_guest, get_speedtest_results, get_ips_events
@@ -443,6 +443,7 @@ Single action-based tool for all UniFi operations.
 | `get_firewall_rules` | List firewall rules |
 | `get_firewall_groups` | List firewall groups |
 | `get_static_routes` | List static routes |
+| `get_dhcp_reservations` | List DHCP fixed-IP reservations (active + past devices) |
 
 #### Monitoring & Statistics
 | Action | Description |

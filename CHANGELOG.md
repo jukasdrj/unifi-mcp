@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-17
+
+### Added
+- New `get_dhcp_reservations` action: lists DHCP fixed-IP reservations across all
+  known clients (active **and** past/offline devices) via `/rest/user`, flagging
+  each as currently-active or past, sorted by reserved IP.
+
+### Fixed
+- **Clients always shown "Offline":** `/stat/sta` returns only connected clients and
+  carries no `is_online` field, so the formatters now treat presence as online
+  (`format_client_text` / `format_client_summary`).
+- **`get_controller_status` 401 on UDM Pro:** repointed from the invalid
+  `/proxy/network/api/status` to `/stat/sysinfo` (returns controller version/build).
+- **`get_user_info` "Not authenticated":** was reading MCP-caller OAuth claims (absent
+  under Bearer auth); now returns the UniFi controller admin from `/self`.
+
+### Changed
+- `get_clients` now surfaces DHCP reservation status (`dhcp_reserved` / `fixed_ip`
+  fields, plus a 📌 marker in text output).
+- `get_network_configs` text now includes the DHCP pool range (`dhcpd_start`-`dhcpd_stop`).
+
 ## [1.0.4] - 2026-04-15
 
 ### Changed

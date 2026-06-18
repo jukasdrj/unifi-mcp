@@ -187,6 +187,11 @@ class UnifiControllerClient:
         """Get all active clients for a site."""
         return await self._make_request("GET", "/stat/sta", site_name=site_name)
 
+    async def get_all_known_clients(self, site_name: str = "default") -> dict[str, Any] | list:
+        """Get all known clients (active + historical), including DHCP reservation
+        config (`use_fixedip`/`fixed_ip`). Backs get_dhcp_reservations."""
+        return await self._make_request("GET", "/rest/user", site_name=site_name)
+
     async def restart_device(self, mac: str, site_name: str = "default") -> dict[str, Any] | list:
         """Restart a device by MAC address."""
         data = {"cmd": "restart", "mac": mac.lower().replace("-", ":").replace(".", ":")}

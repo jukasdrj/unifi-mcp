@@ -72,8 +72,9 @@ class MonitoringService(BaseService):
     async def _get_controller_status(self, params: UnifiParams) -> ToolResult:
         """Get controller system information and status."""
         try:
-            # Get basic controller status
-            result = await self.client._make_request("GET", "/status", site_name="")
+            # /stat/sysinfo is the correct UniFi OS path (the old /status path
+            # 401s on UDM Pro). Returns a list with a single sysinfo dict.
+            result = await self.client._make_request("GET", "/stat/sysinfo", site_name="default")
 
             if isinstance(result, dict) and "error" in result:
                 return ToolResult(
@@ -81,17 +82,19 @@ class MonitoringService(BaseService):
                     structured_content={"error": result.get('error','unknown error'), "raw": result}
                 )
 
-            # Type narrowing: result should be a dict here
-            assert isinstance(result, dict), "Expected dict response from controller status"
+            info = result[0] if isinstance(result, list) and result else (result if isinstance(result, dict) else {})
+            version = info.get("version") or info.get("console_display_version", "Unknown")
+            build = info.get("build", "")
 
             resp = {
                 "status": "online",
-                "server_version": result.get("server_version", "Unknown"),
-                "up": result.get("up", False),
-                "details": result
+                "server_version": version,
+                "build": build,
+                "up": True,
+                "details": info
             }
-            up_icon = "✓" if resp.get("up") else "✗"
-            text = f"Controller Status\n  Version: {resp['server_version']} | Up: {up_icon}"
+            build_str = f" ({build})" if build else ""
+            text = f"Controller Status\n  Version: {version}{build_str} | Up: ✓"
             return ToolResult(
                 content=[TextContent(type="text", text=text)],
                 structured_content=resp

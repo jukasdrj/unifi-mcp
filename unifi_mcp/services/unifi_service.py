@@ -88,49 +88,37 @@ class UnifiService:
             )
 
     async def _get_user_info(self) -> ToolResult:
-        """Get authenticated user information (OAuth only).
+        """Get the authenticated UniFi controller admin account.
 
         Returns:
-            ToolResult with user information or error if OAuth not enabled
+            ToolResult with the controller `self` admin record
         """
         try:
-            # Import here to avoid issues if not using authentication
-            from datetime import datetime, timezone
+            # /s/default/self returns the admin account this session is logged in as.
+            # (The old implementation reported MCP-caller OAuth claims, which are
+            #  absent under simple Bearer auth -> always "Not authenticated".)
+            result = await self.client._make_request("GET", "/self", site_name="default")
 
-            from fastmcp.server.dependencies import get_access_token
-
-            def _to_iso(ts):
-                try:
-                    return datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat()
-                except Exception:
-                    return ts
-
-            token = get_access_token()
-            # If get_access_token becomes async in future versions:
-            # token = await get_access_token()
-
-            if token is None:
+            if isinstance(result, dict) and "error" in result:
                 return ToolResult(
-                    content=[TextContent(type="text", text="Error: Not authenticated")],
-                    structured_content={"authenticated": False, "error": "No authentication token found"}
+                    content=[TextContent(type="text", text=f"Error: {result.get('error','unknown error')}")],
+                    structured_content={"authenticated": False, "error": result.get('error','unknown error')}
                 )
 
-            # The GoogleProvider stores user data in token claims
+            admin = result[0] if isinstance(result, list) and result else (result if isinstance(result, dict) else {})
+
             user_info = {
-                "google_id": token.claims.get("sub"),
-                "email": token.claims.get("email"),
-                "name": token.claims.get("name"),
-                "picture": token.claims.get("picture"),
-                "locale": token.claims.get("locale"),
-                "verified_email": token.claims.get("email_verified"),
-                "token_issued_at": _to_iso(token.claims.get("iat")),
-                "token_expires_at": _to_iso(token.claims.get("exp")),
                 "authenticated": True,
+                "admin_id": admin.get("admin_id") or admin.get("id"),
+                "name": admin.get("name"),
+                "email": admin.get("email"),
+                "is_super": admin.get("is_super"),
+                "last_site_name": admin.get("last_site_name"),
             }
 
-            logger.debug("User authenticated.")
+            display = user_info.get("name") or user_info.get("email") or "Unknown"
             return ToolResult(
-                content=[TextContent(type="text", text=f"Authenticated as: {user_info.get('email', 'Unknown')}")],
+                content=[TextContent(type="text", text=f"Controller admin: {display}")],
                 structured_content=user_info
             )
 

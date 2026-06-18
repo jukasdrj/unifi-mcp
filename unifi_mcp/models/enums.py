@@ -38,6 +38,7 @@ class UnifiAction(str, Enum):
     GET_FIREWALL_RULES = "get_firewall_rules"
     GET_FIREWALL_GROUPS = "get_firewall_groups"
     GET_STATIC_ROUTES = "get_static_routes"
+    GET_DHCP_RESERVATIONS = "get_dhcp_reservations"
 
     # Monitoring and Statistics Actions (11)
     GET_CONTROLLER_STATUS = "get_controller_status"
@@ -82,6 +83,7 @@ NETWORK_ACTIONS = {
     UnifiAction.GET_FIREWALL_RULES,
     UnifiAction.GET_FIREWALL_GROUPS,
     UnifiAction.GET_STATIC_ROUTES,
+    UnifiAction.GET_DHCP_RESERVATIONS,
 }
 
 MONITORING_ACTIONS = {
