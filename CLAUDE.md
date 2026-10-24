@@ -1,146 +1,50 @@
-# CLAUDE.md
+# AGENTS.md — unifi-mcp
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Modular UniFi MCP server using FastMCP with streamable HTTP transport.
 
-## Project Context
+## 🚨 Critical Implementation Details
 
-Modular UniFi MCP server using FastMCP with streamable HTTP transport. Built as a Python package (`unifi_mcp`) with organized tools, resources, client, and configuration modules. Connects directly to local UniFi controllers (Cloud Gateway Max, UDM Pro) for real-time device management.
+### 1. Controller Type Detection
+The `UNIFI_IS_UDM_PRO=true` flag significantly changes API interaction:
+*   **API Base Path**: `/proxy/network/api` (UDM Pro) vs `/api` (Legacy)
+*   **Login Endpoint**: `/api/auth/login` (UDM Pro) vs `/api/login` (Legacy)
+*   **Cookie Name**: `TOKEN` (UDM Pro) vs `unifises` (Legacy)
 
-### Package Structure
-- `unifi_mcp/main.py` - Main entry point
-- `unifi_mcp/server.py` - FastMCP server implementation  
-- `unifi_mcp/client.py` - UniFi controller client
-- `unifi_mcp/tools/` - MCP tool implementations
-- `unifi_mcp/resources/` - MCP resource implementations
-- `unifi_mcp/config.py` - Configuration and logging setup
+### 2. Authentication & API Flow
+*   **Mandatory Check**: Always call `await ensure_authenticated()` before any API operation.
+*   **MAC Normalization**: MAC addresses must be normalized as: `mac.lower().replace("-", ":").replace(".", ":")`.
+*   **Site Parameters**: 
+    *   Use `site_name=""` ONLY for the `/self/sites` endpoint.
+    *   Use `site_name="default"` for all other site-specific operations.
 
-## Development Commands
+### 3. MCP-Specific Patterns
+*   **Tool Design**: Expose a single unified `unifi` tool with an `action` parameter and a separate `unifi_help` tool. Do not create dozens of top-level tools.
+*   **Resources**: Use `@mcp.resource("unifi://path")` and return data objects, never raw JSON strings.
+*   **Data Formatting**: All bandwidth/storage values must be passed through `format_data_values()` for human-readability (KB, MB, GB), while preserving raw values in `*_raw` fields.
+*   **Error Handling**: Return error objects `{"error": "message"}` instead of raising exceptions.
 
-```bash
-# Setup and run
-uv sync              # Install dependencies
-./run.sh             # Start server in background with log streaming
-./run.sh logs        # Stream logs from running server
+## Development & Operations
 
-# Development
-uv add package-name                    # Add dependency
-uv run ruff check .                   # Lint code
-uv run mypy .                         # Type check
-uv run pytest                        # Run tests
-uv run python -m unifi_mcp.main      # Run server directly
-```
+### Essential Commands
+| Command | Purpose |
+|---|---|
+| `uv sync` | Install dependencies |
+| `./run.sh` | Start server in background + stream logs |
+| `./run.sh logs` | Stream logs from existing process |
+| `uv run pytest` | Run test suite |
+| `uv run ruff check .` | Lint code |
+| `uv run mypy .` | Type check |
+| `kill $(cat logs/unifi-mcp.pid)` | Stop the server |
 
-## Key Architecture Patterns
+### Versioning Policy
+**Every feature branch push MUST bump the version in ALL version-bearing files simultaneously.**
+*   **Major**: `feat!:` or `BREAKING CHANGE`
+*   **Minor**: `feat` or `feat(...)`
+*   **Patch**: `fix`, `chore`, `refactor`, `test`, `docs`
+*   **Files to Update**: `pyproject.toml`, `.claude-plugin/plugin.json`, `uv.lock` (via `uv lock`), and `CHANGELOG.md`.
 
-### Authentication Flow
-- UDM Pro/UniFi OS: `/api/auth/login` → TOKEN cookie → JWT CSRF token
-- Legacy controllers: `/api/login` → unifises cookie → header CSRF
-- Always call `await ensure_authenticated()` before API operations
-
-### Data Formatting
-- All byte values auto-converted to human readable (KB, MB, GB) via `format_data_values()`
-- Raw values preserved as `*_raw` fields
-- Apply to all tool responses with bandwidth/storage data
-
-### MCP Patterns
-- **Tools**: Expose the unified `unifi` tool plus `unifi_help`, not dozens of top-level tools
-- **Resources**: Use `@mcp.resource("unifi://path")` for data access
-- **Default site**: All operations default to "default" site when site_name omitted
-- **Return objects**: Resources return data objects, not JSON strings
-
-## Critical Implementation Details
-
-### MAC Address Handling
-Always normalize: `mac.lower().replace("-", ":").replace(".", ":")`
-
-### Site Parameters
-- Use `site_name=""` for `/self/sites` endpoint only
-- Use `site_name="default"` for all other site-specific operations
-- Most tools/resources default to "default" site
-
-### Error Handling
-- Return error objects `{"error": "message"}` instead of raising exceptions
-- Log authentication failures with URL for debugging
-- Handle MFA gracefully (return false, log available methods)
-
-### Controller Type Detection
-`UNIFI_IS_UDM_PRO=true` changes:
-- API base path: `/proxy/network/api` vs `/api`
-- Login endpoint: `/api/auth/login` vs `/api/login`
-- Cookie name: `TOKEN` vs `unifises`
-
-## Configuration Requirements
-
+## Configuration
 Required environment variables:
-- `UNIFI_URL` - Full URL with port (https://IP:443 or https://IP:8443)
-- `UNIFI_USERNAME` - Local admin account (not UniFi Cloud)
-- `UNIFI_PASSWORD` - Local admin password
-- `UNIFI_MCP_TOKEN` - Bearer token for HTTP auth unless `UNIFI_MCP_NO_AUTH=true`
-
-Optional logging and server management:
-- `UNIFI_MCP_HOST` - Bind host (default: `0.0.0.0`)
-- `UNIFI_MCP_PORT` - HTTP port (default: `8001`)
-- `UNIFI_MCP_LOG_LEVEL` - Set logging level (DEBUG, INFO, WARNING, ERROR)
-- `UNIFI_MCP_LOG_FILE` - Server-specific log file setting
-- `UNIFI_MCP_NO_AUTH` - Disable bearer auth for trusted local testing only
-
-Default settings handle most UDM Pro/Cloud Gateway Max setups.
-
-## Testing MCP Server
-
-```bash
-# Test via HTTP API
-curl -X POST http://localhost:8001/mcp \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $UNIFI_MCP_TOKEN" \
-  -d '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"unifi","arguments":{"action":"get_devices"}}}'
-```
-
-Server runs on port 8001 with endpoint `/mcp`.
-
-## Logging and Process Management
-
-The server includes advanced logging and process management features:
-
-### Log Management
-- **Prettified logs**: Colored output with timestamps via `./run.sh`
-- **Background execution**: Server runs independently in background
-- **PID file management**: Process ID stored for easy management
-- **Log streaming**: Use `./run.sh logs` to view logs from running server
-
-### Log Colors
-- **DEBUG**: Cyan
-- **INFO**: Green  
-- **WARNING**: Yellow
-- **ERROR**: Red
-- **CRITICAL**: Magenta
-
-### Process Control
-```bash
-./run.sh              # Start server + stream logs
-./run.sh logs         # Stream logs only
-kill $(cat logs/unifi-mcp.pid)  # Stop server
-```
-
-
-## Version Bumping
-
-**Every feature branch push MUST bump the version in ALL version-bearing files.**
-
-Bump type is determined by the commit message prefix:
-- `feat!:` or `BREAKING CHANGE` → **major** (X+1.0.0)
-- `feat` or `feat(...)` → **minor** (X.Y+1.0)
-- Everything else (`fix`, `chore`, `refactor`, `test`, `docs`, etc.) → **patch** (X.Y.Z+1)
-
-**Files to update (if they exist in this repo):**
-- `pyproject.toml` — `version = "X.Y.Z"` in `[project]`
-- `.claude-plugin/plugin.json` — `"version": "X.Y.Z"`
-- `uv.lock` — regenerate with `uv lock` after bumping `pyproject.toml`
-- `CHANGELOG.md` — new entry under the bumped version
-
-(The README version badge is a dynamic PyPI shield, so there is nothing to bump
-there. The `.codex-plugin/` and `gemini-extension.json` manifests were removed in
-2.0.0 — only the Claude plugin manifest is shipped.)
-
-All version-bearing files MUST have the same version. Never bump only one file.
-CHANGELOG.md must have an entry for every version bump.
+*   `UNIFI_URL`: Full URL with port (e.g., `https://192.168.1.x:443`).
+*   `UNIFI_USERNAME` / `UNIFI_PASSWORD`: Local admin credentials.
+*   `UNIFI_MCP_TOKEN`: Bearer token for HTTP auth (unless `UNIFI_MCP_NO_AUTH=true`).
