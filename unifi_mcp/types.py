@@ -6,19 +6,22 @@ from typing import TypedDict
 # Base UniFi API Response
 class UniFiMeta(TypedDict, total=False):
     """UniFi API metadata."""
+
     rc: str
     msg: str
 
 
 class UniFiResponse(TypedDict, total=False):
     """Base UniFi API response structure."""
+
     meta: UniFiMeta
-    data: list['UniFiDevice'] | list['UniFiClient'] | list['UniFiSite'] | list[dict[str, 'JSONValue']] | dict[str, 'JSONValue']
+    data: list["UniFiDevice"] | list["UniFiClient"] | list["UniFiSite"] | list[dict[str, "JSONValue"]] | dict[str, "JSONValue"]
 
 
 # Device Types
 class UniFiDevice(TypedDict, total=False):
     """UniFi device data structure."""
+
     _id: str
     mac: str
     name: str
@@ -39,14 +42,14 @@ class UniFiDevice(TypedDict, total=False):
     num_sta: int
     user_num_sta: int
     guest_num_sta: int
-    uplink: dict[str, 'JSONValue']
-    config_network: dict[str, 'JSONValue']
-    port_table: list[dict[str, 'JSONValue']]
-    ethernet_table: list[dict[str, 'JSONValue']]
+    uplink: dict[str, "JSONValue"]
+    config_network: dict[str, "JSONValue"]
+    port_table: list[dict[str, "JSONValue"]]
+    ethernet_table: list[dict[str, "JSONValue"]]
     temperatures: list[float]
     cpu: float
     mem: float
-    system_stats: dict[str, 'JSONValue']
+    system_stats: dict[str, "JSONValue"]
     site_id: str
     site_name: str
 
@@ -54,6 +57,7 @@ class UniFiDevice(TypedDict, total=False):
 # Client Types
 class UniFiClient(TypedDict, total=False):
     """UniFi client data structure."""
+
     _id: str
     mac: str
     name: str
@@ -93,6 +97,7 @@ class UniFiClient(TypedDict, total=False):
 # Site Types
 class UniFiSite(TypedDict, total=False):
     """UniFi site data structure."""
+
     _id: str
     name: str
     desc: str
@@ -104,6 +109,7 @@ class UniFiSite(TypedDict, total=False):
 # Network Configuration Types
 class UniFiNetwork(TypedDict, total=False):
     """UniFi network configuration."""
+
     _id: str
     name: str
     purpose: str
@@ -124,6 +130,7 @@ class UniFiNetwork(TypedDict, total=False):
 
 class UniFiWLAN(TypedDict, total=False):
     """UniFi WLAN configuration."""
+
     _id: str
     name: str
     enabled: bool
@@ -145,6 +152,7 @@ class UniFiWLAN(TypedDict, total=False):
 # Dashboard & Statistics Types
 class UniFiDashboard(TypedDict, total=False):
     """UniFi dashboard metrics."""
+
     time: int
     wan_rx_bytes: int
     wan_tx_bytes: int
@@ -170,6 +178,7 @@ class UniFiDashboard(TypedDict, total=False):
 # DPI Statistics Types
 class UniFiDPIStat(TypedDict, total=False):
     """UniFi DPI (Deep Packet Inspection) statistic."""
+
     app: int
     cat: int
     name: str
@@ -182,6 +191,7 @@ class UniFiDPIStat(TypedDict, total=False):
 # Event Types
 class UniFiEvent(TypedDict, total=False):
     """UniFi event data."""
+
     _id: str
     time: int
     datetime: str
@@ -201,6 +211,7 @@ class UniFiEvent(TypedDict, total=False):
 # Alarm Types
 class UniFiAlarm(TypedDict, total=False):
     """UniFi alarm data."""
+
     _id: str
     time: int
     datetime: str
@@ -214,6 +225,7 @@ class UniFiAlarm(TypedDict, total=False):
 # Port Forwarding Types
 class UniFiPortForward(TypedDict, total=False):
     """UniFi port forwarding rule."""
+
     _id: str
     name: str
     enabled: bool
@@ -229,6 +241,7 @@ class UniFiPortForward(TypedDict, total=False):
 # Firewall Types
 class UniFiFirewallRule(TypedDict, total=False):
     """UniFi firewall rule."""
+
     _id: str
     name: str
     enabled: bool
@@ -252,6 +265,7 @@ class UniFiFirewallRule(TypedDict, total=False):
 
 class UniFiFirewallGroup(TypedDict, total=False):
     """UniFi firewall group."""
+
     _id: str
     name: str
     group_type: str
@@ -262,6 +276,7 @@ class UniFiFirewallGroup(TypedDict, total=False):
 # Static Route Types
 class UniFiStaticRoute(TypedDict, total=False):
     """UniFi static route."""
+
     _id: str
     name: str
     enabled: bool
@@ -275,6 +290,7 @@ class UniFiStaticRoute(TypedDict, total=False):
 # Controller Status Types
 class UniFiControllerStatus(TypedDict, total=False):
     """UniFi controller status."""
+
     up: bool
     version: str
     server_version: str
@@ -288,6 +304,7 @@ class UniFiControllerStatus(TypedDict, total=False):
 # Speed Test Types
 class UniFiSpeedTest(TypedDict, total=False):
     """UniFi speed test result."""
+
     _id: str
     time: int
     status_download: int
@@ -303,6 +320,7 @@ class UniFiSpeedTest(TypedDict, total=False):
 # IPS Event Types
 class UniFiIPSEvent(TypedDict, total=False):
     """UniFi IPS (Intrusion Prevention System) event."""
+
     _id: str
     time: int
     datetime: str
@@ -322,6 +340,7 @@ class UniFiIPSEvent(TypedDict, total=False):
 # Rogue AP Types
 class UniFiRogueAP(TypedDict, total=False):
     """UniFi rogue access point."""
+
     _id: str
     age: int
     ap_mac: str
@@ -351,6 +370,7 @@ class UniFiRogueAP(TypedDict, total=False):
 # Guest Authorization Types
 class UniFiGuestAuth(TypedDict, total=False):
     """UniFi guest authorization data."""
+
     mac: str
     minutes: int
     up: int | None
@@ -364,22 +384,38 @@ JSONValue = None | bool | int | float | str | list["JSONValue"] | dict[str, "JSO
 
 # Union types for API responses
 UniFiData = (
-    list[UniFiDevice] | list[UniFiClient] | list[UniFiSite] | list[UniFiNetwork]
-    | list[UniFiWLAN] | list[UniFiDPIStat] | list[UniFiEvent] | list[UniFiAlarm]
-    | list[UniFiPortForward] | list[UniFiFirewallRule] | list[UniFiFirewallGroup]
-    | list[UniFiStaticRoute] | list[UniFiSpeedTest] | list[UniFiIPSEvent]
-    | list[UniFiRogueAP] | UniFiDashboard | UniFiControllerStatus
-    | list[dict[str, JSONValue]] | dict[str, JSONValue]
+    list[UniFiDevice]
+    | list[UniFiClient]
+    | list[UniFiSite]
+    | list[UniFiNetwork]
+    | list[UniFiWLAN]
+    | list[UniFiDPIStat]
+    | list[UniFiEvent]
+    | list[UniFiAlarm]
+    | list[UniFiPortForward]
+    | list[UniFiFirewallRule]
+    | list[UniFiFirewallGroup]
+    | list[UniFiStaticRoute]
+    | list[UniFiSpeedTest]
+    | list[UniFiIPSEvent]
+    | list[UniFiRogueAP]
+    | UniFiDashboard
+    | UniFiControllerStatus
+    | list[dict[str, JSONValue]]
+    | dict[str, JSONValue]
 )
+
 
 # Error response type
 class ErrorResponse(TypedDict):
     """Error response structure."""
+
     error: str
 
 
 # Command response type for actions like restart, locate, etc.
 class CommandResponse(TypedDict, total=False):
     """Command response structure."""
+
     meta: UniFiMeta
     data: list[dict[str, JSONValue]]
