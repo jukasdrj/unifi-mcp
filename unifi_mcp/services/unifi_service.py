@@ -61,9 +61,7 @@ class UnifiService:
             elif params.action in MONITORING_ACTIONS:
                 return await self.monitoring_service.execute_action(params)
             else:
-                return self._create_error_result(
-                    f"Unknown action: {params.action}"
-                )
+                return self._create_error_result(f"Unknown action: {params.action}")
 
         except Exception as e:
             logger.error(f"Error executing action {params.action}: {e}")
@@ -80,7 +78,4 @@ class UnifiService:
         Returns:
             ToolResult with error information
         """
-        return ToolResult(
-            content=[TextContent(type="text", text=f"Error: {message}")],
-            structured_content={"error": message, "raw": raw_data}
-        )
+        return ToolResult(content=[TextContent(type="text", text=f"Error: {message}")], structured_content={"error": message, "raw": raw_data})

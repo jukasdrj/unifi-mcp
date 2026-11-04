@@ -247,10 +247,24 @@ MOCK_SELF = [
 # Row 1's MAC matches a MOCK_CLIENTS MAC -> active; row 2's does not -> past;
 # row 3 has no fixed IP and must be excluded.
 MOCK_KNOWN_USERS = [
-    {"mac": "cc:dd:ee:ff:00:01", "name": "Alice Reserved", "use_fixedip": True,
-     "fixed_ip": "192.168.1.21", "is_wired": False, "oui": "Apple", "network_id": "net1"},
-    {"mac": "cc:dd:ee:ff:00:99", "hostname": "old-server", "use_fixedip": True,
-     "fixed_ip": "192.168.1.10", "is_wired": True, "oui": "Dell", "network_id": "net1"},
+    {
+        "mac": "cc:dd:ee:ff:00:01",
+        "name": "Alice Reserved",
+        "use_fixedip": True,
+        "fixed_ip": "192.168.1.21",
+        "is_wired": False,
+        "oui": "Apple",
+        "network_id": "net1",
+    },
+    {
+        "mac": "cc:dd:ee:ff:00:99",
+        "hostname": "old-server",
+        "use_fixedip": True,
+        "fixed_ip": "192.168.1.10",
+        "is_wired": True,
+        "oui": "Dell",
+        "network_id": "net1",
+    },
     {"mac": "cc:dd:ee:ff:00:42", "name": "Dynamic Device", "use_fixedip": False},
 ]
 
